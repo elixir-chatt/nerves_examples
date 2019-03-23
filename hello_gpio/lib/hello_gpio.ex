@@ -10,26 +10,41 @@ defmodule HelloGpio do
 
   def start(_type, _args) do
     Logger.info("Starting pin #{@output_pin} as output")
-    {:ok, output_gpio} = GPIO.open(@output_pin, :output)
-    spawn(fn -> toggle_pin_forever(output_gpio) end)
+    {:ok, pin1} = GPIO.open(26, :output)
+    {:ok, pin2} = GPIO.open(19, :output)
+    spawn(fn -> toggle_pins_both_ways([pin1, pin2]) end)
 
     Logger.info("Starting pin #{@input_pin} as input")
     {:ok, input_gpio} = GPIO.open(@input_pin, :input)
     spawn(fn -> listen_forever(input_gpio) end)
     {:ok, self()}
   end
+  
+  defp toggle_pins_both_ways(pins) do
+    Enum.map( (1..4), fn(_) -> toggle_pins_alternating(pins) end)
+    Enum.map( (1..4), fn(_) -> toggle_pins_together(pins) end)
 
-  defp toggle_pin_forever(output_gpio) do
-    Logger.debug("Turning pin #{@output_pin} ON")
-    GPIO.write(output_gpio, 1)
-    Process.sleep(500)
-
-    Logger.debug("Turning pin #{@output_pin} OFF")
-    GPIO.write(output_gpio, 0)
-    Process.sleep(500)
-
-    toggle_pin_forever(output_gpio)
+    toggle_pins_both_ways(pins)
   end
+
+  defp toggle_pins_together(pins) do
+    blink(pins)
+  end
+
+  defp toggle_pins_alternating(pins) do
+    Enum.map( pins, &blink/1)
+  end
+  
+  defp blink(pins) do
+    toggle(pins, 1)
+    toggle(pins, 0)
+  end
+  
+  defp toggle(pins, value) when is_list(pins) do
+    Enum.map pins, &GPIO.write(&1, value)
+    Process.sleep(500)
+  end
+  defp toggle(pins, value), do: toggle([pins], value)
 
   defp listen_forever(input_gpio) do
     # Start listening for interrupts on rising and falling edges
