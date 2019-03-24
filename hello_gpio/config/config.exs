@@ -11,7 +11,7 @@ use Mix.Config
 config :nerves, :firmware, rootfs_overlay: "rootfs_overlay"
 
 config :hello_gpio, input_pin: 20
-config :hello_gpio, output_pin: 26
+config :hello_gpio, output_pins: [26, 19]
 
 # Use shoehorn to start the main application. See the shoehorn
 # docs for separating out critical OTP applications such as those
@@ -33,6 +33,7 @@ config :logger, backends: [RingLogger]
 
 keys =
   [
+    Path.join([System.user_home!(), ".ssh", "batate_rsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_rsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_ecdsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_ed25519.pub"])
@@ -58,11 +59,21 @@ config :nerves_firmware_ssh,
 node_name = if Mix.env() != :prod, do: "hello_gpio"
 
 config :nerves_init_gadget,
-  ifname: "usb0",
-  address_method: :dhcpd,
+  ifname: "wlan0",
+  address_method: :dhcp,
   mdns_domain: "hello_gpio.local",
   node_name: node_name,
   node_host: :mdns_domain
+
+key_mgmt = System.get_env("NERVES_NETWORK_KEY_MGMT") || "WPA-PSK"
+
+config :nerves_network, :default,
+  wlan0: [
+    ssid: System.get_env("NERVES_NETWORK_SSID"),
+    psk: System.get_env("NERVES_NETWORK_PSK"),
+    key_mgmt: String.to_atom(key_mgmt)
+  ]
+
 
 # Import target specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
